@@ -173,6 +173,7 @@ class Annotations {
       while (a.firstChild) {
         a.removeChild(a.firstChild)
       }
+      a.parentNode.removeChild(a)
     })
   }
 

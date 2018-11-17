@@ -97,6 +97,15 @@ class Crosshairs {
 
     w.globals.dom.elGraphical.add(ycrosshairsHidden)
   }
+
+  destroy () {
+    const w = this.w
+    const els = w.globals.dom.baseEl.querySelectorAll('.apexcharts-ycrosshairs, .apexcharts-xcrosshairs')
+
+    els.forEach((el) => {
+      el.parentNode.removeChild(el)
+    })
+  }
 }
 
 export default Crosshairs

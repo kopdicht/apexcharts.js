@@ -171,9 +171,12 @@ class ApexCharts {
     }
   }
 
-  create (ser, opts = {}) {
+  create (ser, opts = {}, redraw = true) {
     let w = this.w
-    this.initModules()
+
+    if (redraw) {
+      this.initModules()
+    }
     let gl = this.w.globals
 
     gl.noData = false
@@ -184,29 +187,36 @@ class ApexCharts {
       return null
     }
 
-    this.core.setupElements()
-
-    this.coreUtils.checkComboSeries()
+    if (redraw) {
+      this.core.setupElements()
+      this.coreUtils.checkComboSeries()
+    }
 
     if (ser.length === 0 || (ser.length === 1 && ser[0].data && ser[0].data.length === 0)) {
       this.series.handleNoData()
     }
 
-    this.setupEventHandlers()
+    if (redraw) {
+      this.setupEventHandlers()
+    }
+
     this.core.parseData(ser)
     // this is a good time to set theme colors first
-    this.theme.init()
-    // labelFormatters should be called before dimensions as in dimensions we need text labels width
 
-    // as markers accepts array, we need to setup global markers for easier access
-    const markers = new Markers(this)
-    markers.setGlobalMarkerSize()
+    if (redraw) {
+      this.theme.init()
+      // labelFormatters should be called before dimensions as in dimensions we need text labels width
 
-    this.formatters.setLabelFormatters()
-    this.titleSubtitle.draw()
+      // as markers accepts array, we need to setup global markers for easier access
+      const markers = new Markers(this)
+      markers.setGlobalMarkerSize()
+
+      this.formatters.setLabelFormatters()
+      this.titleSubtitle.draw()
+      this.legend.init()
+    }
 
     // legend is calculated here before coreCalculations because it affects the plottable area
-    this.legend.init()
 
     // coreCalculations will give the min/max range and yaxis/axis values. It should be called here to set series variable from config to globals
     if (gl.axisCharts) {
@@ -226,8 +236,13 @@ class ApexCharts {
 
     const xyRatios = this.core.xySettings()
 
-    this.grid.createGridMask()
+    if (redraw) {
+      this.grid.createGridMask()
+    }
 
+    if (!redraw) {
+      this.destroyChartTypes()
+    }
     const elGraph = this.core.plotChartType(ser, xyRatios)
 
     // after all the drawing calculations, shift the graphical area (actual charts/bars) excluding legends
@@ -250,7 +265,25 @@ class ApexCharts {
     }
   }
 
-  mount (graphData = null) {
+  // destroyInnerEl () {
+
+  // }
+
+  destroyChartTypes () {
+    const w = this.w
+    const allChartSeries = w.globals.dom.baseEl.querySelectorAll('.apexcharts-series')
+
+    allChartSeries.forEach((s) => {
+      if (s) {
+        while (s.firstChild) {
+          s.removeChild(s.firstChild)
+        }
+        s.parentNode.removeChild(s)
+      }
+    })
+  }
+
+  mount (graphData = null, redraw = true) {
     let me = this
     let w = me.w
 
@@ -262,12 +295,18 @@ class ApexCharts {
         me.series.handleNoData()
       }
 
+      me.core.destroyAxis()
       me.core.drawAxis(
         w.config.chart.type,
         graphData.xyRatios
       )
 
       me.grid = new Grid(me)
+
+      if (!redraw) {
+        me.grid.destroyGrid()
+      }
+
       if (w.config.grid.position === 'back') {
         me.grid.drawGrid()
       }
@@ -288,6 +327,7 @@ class ApexCharts {
         me.grid.drawGrid()
       }
 
+      me.crosshairs.destroy()
       if (w.config.xaxis.crosshairs.position === 'front') {
         me.crosshairs.drawXCrosshairs()
       }
@@ -296,6 +336,7 @@ class ApexCharts {
         me.crosshairs.drawYCrosshairs()
       }
 
+      this.clearAnnotations()
       if (w.config.annotations.position === 'front') {
         me.annotations.drawAnnotations()
       }
@@ -303,11 +344,15 @@ class ApexCharts {
       if (!w.globals.noData) {
         // draw tooltips at the end
         if (w.config.tooltip.enabled && !w.globals.noData) {
-          me.w.globals.tooltip.drawTooltip(graphData.xyRatios)
+          if (redraw) {
+            me.w.globals.tooltip.drawTooltip(graphData.xyRatios)
+          } else {
+            me.w.globals.tooltip.xyRatios = graphData.xyRatios
+          }
         }
 
         if (w.globals.axisCharts && w.globals.isXNumeric) {
-          if (w.config.chart.zoom.enabled || (w.config.chart.selection && w.config.chart.selection.enabled) || (w.config.chart.pan && w.config.chart.pan.enabled)) {
+          if ((w.config.chart.zoom.enabled || (w.config.chart.selection && w.config.chart.selection.enabled) || (w.config.chart.pan && w.config.chart.pan.enabled)) && redraw) {
             me.zoomPanSelection.init({
               xyRatios: graphData.xyRatios
             })
@@ -322,7 +367,7 @@ class ApexCharts {
           tools.reset = false
         }
 
-        if (w.config.chart.toolbar.show && !w.globals.allSeriesCollapsed) {
+        if (w.config.chart.toolbar.show && !w.globals.allSeriesCollapsed && redraw) {
           me.toolbar.createToolbar()
         }
       }
@@ -420,7 +465,7 @@ class ApexCharts {
         }
       }
 
-      return ch.update(options)
+      return ch.update(options, true)
     })
   }
 
@@ -478,7 +523,7 @@ class ApexCharts {
       w.globals.initialSeries = JSON.parse(JSON.stringify(w.config.series))
     }
 
-    return this.update()
+    return this.update({}, false)
   }
 
   /**
@@ -536,17 +581,19 @@ class ApexCharts {
       me.w.globals.initialSeries = JSON.parse(JSON.stringify(me.w.config.series))
     }
 
-    return this.update()
+    return this.update({}, false)
   }
 
-  update (options) {
+  update (options, redraw = true) {
     const me = this
 
     return new Promise((resolve, reject) => {
-      me.clear()
-      const graphData = me.create(me.w.config.series, options)
+      if (redraw) {
+        me.clear()
+      }
+      const graphData = me.create(me.w.config.series, options, redraw)
       if (!graphData) return resolve(me)
-      me.mount(graphData).then(() => {
+      me.mount(graphData, redraw).then(() => {
         if (typeof me.w.config.chart.events.updated === 'function') {
           me.w.config.chart.events.updated(me, me.w)
         }
@@ -902,7 +949,7 @@ class ApexCharts {
       this.w.globals.dataChanged = false
 
       // we need to redraw the whole chart on window resize (with a small delay).
-      this.update()
+      this.update({}, true)
     }, 150)
   }
 }

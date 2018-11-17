@@ -74,7 +74,7 @@ class Animations {
   }
 
   animateLine (el, from, to, speed) {
-    el.attr(from).animate(speed).attr(to)
+    el.attr(from).animate(speed, this.w.globals.easing).attr(to)
   }
 
   /*

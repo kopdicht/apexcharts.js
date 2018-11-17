@@ -790,6 +790,15 @@ class Core {
     })
   }
 
+  destroyAxis () {
+    const w = this.w
+    const axis = w.globals.dom.baseEl.querySelectorAll('.apexcharts-yaxis, .apexcharts-xaxis')
+
+    axis.forEach((el) => {
+      el.parentNode.removeChild(el)
+    })
+  }
+
   setupBrushHandler () {
     const w = this.w
 

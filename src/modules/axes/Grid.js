@@ -122,6 +122,14 @@ class Grid {
     defs.appendChild(gl.dom.elGridRectMarkerMask)
   }
 
+  destroyGrid () {
+    const w = this.w
+
+    const el = w.globals.dom.baseEl.querySelector('.apexcharts-grid')
+
+    el.parentNode.removeChild(el)
+  }
+
   // actual grid rendering
   renderGrid () {
     let w = this.w
