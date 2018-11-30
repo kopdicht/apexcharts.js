@@ -490,6 +490,10 @@ class ApexCharts {
   getSyncedCharts () {
     const chartGroups = this.getGroupedCharts()
     let allCharts = [this]
+    
+    //Removing null elements so selection works when having Synced and Not Synced charts in the same page.
+    chartGroups = chartGroups.filter(function (obj) { return obj; });
+
     if (chartGroups.length) {
       allCharts = []
       chartGroups.forEach((ch) => {
