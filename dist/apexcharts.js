@@ -8434,6 +8434,8 @@ var Pie = function () {
     this.size = 0;
     this.donutSize = 0;
 
+    this.sliceLabels = [];
+
     this.prevSectorAngleArr = []; // for dynamic animations
   }
 
@@ -8528,6 +8530,11 @@ var Pie = function () {
       }
 
       var elG = self.drawArcs(sectorAngleArr, series);
+
+      // add slice dataLabels at the end
+      this.sliceLabels.forEach(function (s) {
+        elG.add(s);
+      });
 
       elSeries.attr({
         'transform': 'translate(' + translateX + ', ' + (translateY - 25) + ') scale(' + scaleSize + ')'
@@ -8700,7 +8707,7 @@ var Pie = function () {
               elPieLabel.node.style.animationDelay = w.config.chart.animations.speed / 940 + 's';
             }
 
-            elPieArc.add(elPieLabel);
+            this.sliceLabels.push(elPieLabel);
           }
         }
         // }
@@ -12347,6 +12354,9 @@ var ApexCharts = function () {
     key: '_updateOptions',
     value: function _updateOptions(options) {
       var redraw = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+      var _this2 = this;
+
       var animate = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
       var overwriteInitialConfig = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
 
@@ -12354,7 +12364,9 @@ var ApexCharts = function () {
 
       charts.forEach(function (ch) {
         var w = ch.w;
-
+        // w.globals.zoomed = w.globals.initialmaxX !== w.config.xaxis.max || w.globals.initialminX !== w.config.xaxis.min
+        // w.globals.zoomed = this.w.globals.lastXAxis.max !== w.config.xaxis.max || this.w.globals.lastXAxis.min !== w.config.xaxis.min
+        w.globals.zoomed = _this2.w.globals.initialmaxX !== w.config.xaxis.max || _this2.w.globals.initialminX !== w.config.xaxis.min;
         w.globals.shouldAnimate = animate;
 
         if (!redraw) {
@@ -12367,6 +12379,13 @@ var ApexCharts = function () {
         }
 
         if (options && (typeof options === 'undefined' ? 'undefined' : _typeof(options)) === 'object') {
+          if (!overwriteInitialConfig) {
+            if (!_this2.w.globals.zoomed && !w.globals.zoomed) {
+              w.globals.lastXAxis = _Utils2.default.clone(w.config.xaxis);
+              w.globals.lastYAxis = _Utils2.default.clone(w.config.yaxis);
+            }
+          }
+
           ch.config = new _Config2.default(options);
           options = _CoreUtils2.default.extendArrayProps(ch.config, options);
 
@@ -12374,8 +12393,8 @@ var ApexCharts = function () {
 
           if (overwriteInitialConfig) {
             // we need to forget the lastXAxis and lastYAxis is user forcefully overwriteInitialConfig. If we do not do this, and next time when user zooms the chart after setting yaxis.min/max or xaxis.min/max - the stored lastXAxis will never allow the chart to use the updated min/max by user.
-            w.globals.lastXAxis = [];
-            w.globals.lastYAxis = [];
+            // w.globals.lastXAxis = []
+            // w.globals.lastYAxis = []
 
             // After forgetting lastAxes, we need to restore the new config in initialConfig/initialSeries
             w.globals.initialConfig = _Utils2.default.extend({}, w.config);
@@ -12487,14 +12506,14 @@ var ApexCharts = function () {
   }, {
     key: 'getGroupedCharts',
     value: function getGroupedCharts() {
-      var _this2 = this;
+      var _this3 = this;
 
       return Apex._chartInstances.filter(function (ch) {
         if (ch.group) {
           return true;
         }
       }).map(function (ch) {
-        return _this2.w.config.chart.group === ch.group ? ch.chart : null;
+        return _this3.w.config.chart.group === ch.group ? ch.chart : null;
       });
     }
 
@@ -12534,7 +12553,7 @@ var ApexCharts = function () {
   }, {
     key: 'update',
     value: function update(options) {
-      var _this3 = this;
+      var _this4 = this;
 
       var me = this;
 
@@ -12542,11 +12561,12 @@ var ApexCharts = function () {
         me.clear();
         var graphData = me.create(me.w.config.series, options);
         if (!graphData) return resolve(me);
+
         me.mount(graphData).then(function () {
           if (typeof me.w.config.chart.events.updated === 'function') {
             me.w.config.chart.events.updated(me, me.w);
           }
-          me.fireEvent('updated', [_this3, _this3.w]);
+          me.fireEvent('updated', [_this4, _this4.w]);
 
           me.w.globals.isDirty = true;
 
@@ -12881,15 +12901,15 @@ var ApexCharts = function () {
      * Handle window resize and re-draw the whole chart.
      */
     value: function windowResize() {
-      var _this4 = this;
+      var _this5 = this;
 
       clearTimeout(this.w.globals.resizeTimer);
       this.w.globals.resizeTimer = window.setTimeout(function () {
-        _this4.w.globals.resized = true;
-        _this4.w.globals.dataChanged = false;
+        _this5.w.globals.resized = true;
+        _this5.w.globals.dataChanged = false;
 
         // we need to redraw the whole chart on window resize (with a small delay).
-        _this4.update();
+        _this5.update();
       }, 150);
     }
   }], [{
@@ -20165,8 +20185,6 @@ var ZoomPanSelection = function (_Toolbar) {
         if (w.globals.zoomEnabled) {
           var yaxis = _Utils2.default.clone(w.config.yaxis);
 
-          // before zooming in/out, store the last yaxis and xaxis range, so that when user hits the RESET button, we get the original range
-          // also - make sure user is not already zoomed in/out - otherwise we will store zoomed values in lastAxis
           if (!w.globals.zoomed) {
             w.globals.lastXAxis = _Utils2.default.clone(w.config.xaxis);
             w.globals.lastYAxis = _Utils2.default.clone(w.config.yaxis);

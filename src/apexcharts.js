@@ -394,7 +394,9 @@ class ApexCharts {
 
     charts.forEach((ch) => {
       let w = ch.w
-
+      // w.globals.zoomed = w.globals.initialmaxX !== w.config.xaxis.max || w.globals.initialminX !== w.config.xaxis.min
+      // w.globals.zoomed = this.w.globals.lastXAxis.max !== w.config.xaxis.max || this.w.globals.lastXAxis.min !== w.config.xaxis.min
+      w.globals.zoomed = this.w.globals.initialmaxX !== w.config.xaxis.max || this.w.globals.initialminX !== w.config.xaxis.min
       w.globals.shouldAnimate = animate
 
       if (!redraw) {
@@ -407,6 +409,13 @@ class ApexCharts {
       }
 
       if (options && typeof options === 'object') {
+        if (!overwriteInitialConfig) {
+          if (!this.w.globals.zoomed && !w.globals.zoomed) {
+            w.globals.lastXAxis = Utils.clone(w.config.xaxis)
+            w.globals.lastYAxis = Utils.clone(w.config.yaxis)
+          }
+        }
+
         ch.config = new Config(options)
         options = CoreUtils.extendArrayProps(ch.config, options)
 
@@ -414,8 +423,8 @@ class ApexCharts {
 
         if (overwriteInitialConfig) {
           // we need to forget the lastXAxis and lastYAxis is user forcefully overwriteInitialConfig. If we do not do this, and next time when user zooms the chart after setting yaxis.min/max or xaxis.min/max - the stored lastXAxis will never allow the chart to use the updated min/max by user.
-          w.globals.lastXAxis = []
-          w.globals.lastYAxis = []
+          // w.globals.lastXAxis = []
+          // w.globals.lastYAxis = []
 
           // After forgetting lastAxes, we need to restore the new config in initialConfig/initialSeries
           w.globals.initialConfig = Utils.extend({}, w.config)
@@ -553,6 +562,7 @@ class ApexCharts {
       me.clear()
       const graphData = me.create(me.w.config.series, options)
       if (!graphData) return resolve(me)
+
       me.mount(graphData).then(() => {
         if (typeof me.w.config.chart.events.updated === 'function') {
           me.w.config.chart.events.updated(me, me.w)
